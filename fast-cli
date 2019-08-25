@@ -1,0 +1,156 @@
+#!/bin/sh
+
+# Author:     Héctor Molinero Fernández <hector@molinero.dev>
+# Repository: https://github.com/hectorm/fast-cli
+# License:    MIT, https://opensource.org/licenses/MIT
+
+set -eu
+export LC_ALL=C
+
+getFastToken() {
+	fastMainURL='https://fast.com'
+	fastMainResponse=$(curl -fsSL "${fastMainURL}")
+	fastJSURL=$(printf -- '%s' "${fastMainResponse}" | sed -n 's|.*src="\(/app-[[:alnum:]]*\.js\)".*|\1|p' | head -1)
+	fastJSResponse=$(curl -fsSL "${fastMainURL}${fastJSURL}")
+	fastToken=$(printf -- '%s' "${fastJSResponse}" | sed -n 's|.*token:"\([[:alnum:]]*\)".*|\1|p' | head -1)
+	printf -- '%s' "${fastToken}"
+}
+
+getFastSpeedtestURLs() {
+	fastToken=${1:?}; fastUseHTTPS=${2:?}; fastURLCount=${3:?}
+	fastAPIURLBase='https://api.fast.com/netflix/speedtest'
+	fastAPIURLParams="token=${fastToken}&https=${fastUseHTTPS}&urlCount=${fastURLCount}"
+	fastAPIURL="${fastAPIURLBase}?${fastAPIURLParams}"
+	fastAPIResponse=$(curl -fsSL "${fastAPIURL}")
+	fastSpeedtestURLs=$(printf -- '%s' "${fastAPIResponse}" | sed 's|[^}]*"url":"\([^"]*\)"[^{]*|\1\n|g')
+	printf -- '%s' "${fastSpeedtestURLs}"
+}
+
+# Moves the cursor to the beginning of the current line, deletes it, and prints text
+printr() { printf -- '\r\033[K%s' "${1:?}"; }
+
+# Prints random data
+randOut() { dd if=/dev/urandom bs=25MB count=1 2>/dev/null; }
+
+# Some arithmetic methods with AWK
+add() { awk -v a="${1:?}" -v b="${2:?}" 'BEGIN{printf("%0.2f\n", a + b)}'; }
+div() { awk -v a="${1:?}" -v b="${2:?}" 'BEGIN{printf("%0.2f\n", a / b)}'; }
+min() { awk -v a="${1:?}" -v b="${2:?}" 'BEGIN{printf("%0.2f\n", a < b ? a : b)}'; }
+max() { awk -v a="${1:?}" -v b="${2:?}" 'BEGIN{printf("%0.2f\n", a > b ? a : b)}'; }
+toMbps() { div "${1:?}" 125000; }
+
+main() {
+	fastToken=$(getFastToken); fastUseHTTPS=true; fastURLCount=3
+	fastSpeedtestURLs=$(getFastSpeedtestURLs "${fastToken}" "${fastUseHTTPS}" "${fastURLCount}")
+
+	# Latency tests
+	###############
+
+	if [ -t 1 ]; then
+		printr 'Latency (min/avg/max): '
+	fi
+
+	latencyCount=0; latencySum=0
+	minLatency=; avgLatency=; maxLatency=
+
+	_IFS=$IFS; IFS="$(printf '\nx')"; IFS="${IFS%x}"
+	for url in $fastSpeedtestURLs; do
+		latencyCount=$((latencyCount + 1))
+
+		domain=${url#*://}; domain=${domain%%/*}
+		curLatency=$(ping -c3 "${domain}" | sed -n 's|^.* = \(.*\) ms$|\1|p' | cut -d/ -f2)
+		latencySum=$(add "${latencySum}" "${curLatency}")
+
+		if [ "${latencyCount}" = 1 ]; then
+			minLatency=${curLatency}
+			avgLatency=${curLatency}
+			maxLatency=${curLatency}
+		else
+			minLatency=$(min "${minLatency}" "${curLatency}")
+			avgLatency=$(div "${latencySum}" "${latencyCount}")
+			maxLatency=$(max "${maxLatency}" "${curLatency}")
+		fi
+
+		if [ -t 1 ]; then
+			printr "Latency (min/avg/max): ${minLatency} ${avgLatency} ${maxLatency} ms"
+		elif [ "${latencyCount}" = "${fastURLCount}" ]; then
+			printf '%s\r' "latency,${minLatency},${avgLatency},${maxLatency}"
+		fi
+	done
+	IFS=$_IFS
+	printf '\n'
+
+	# Download speed tests
+	######################
+
+	if [ -t 1 ]; then
+		printr 'Download speed (min/avg/max): '
+	fi
+
+	dlSpeedCount=0; dlSpeedSum=0
+	minDlSpeed=; avgDlSpeed=; maxDlSpeed=
+
+	_IFS=$IFS; IFS="$(printf '\nx')"; IFS="${IFS%x}"
+	for url in $fastSpeedtestURLs; do
+		dlSpeedCount=$((dlSpeedCount + 1))
+
+		curDlSpeed=$(toMbps "$(curl -fsSL -w '%{speed_download}' -o /dev/null "${url}")")
+		dlSpeedSum=$(add "${dlSpeedSum}" "${curDlSpeed}")
+
+		if [ "${dlSpeedCount}" = 1 ]; then
+			minDlSpeed=${curDlSpeed}
+			avgDlSpeed=${curDlSpeed}
+			maxDlSpeed=${curDlSpeed}
+		else
+			minDlSpeed=$(min "${minDlSpeed}" "${curDlSpeed}")
+			avgDlSpeed=$(div "${dlSpeedSum}" "${dlSpeedCount}")
+			maxDlSpeed=$(max "${maxDlSpeed}" "${curDlSpeed}")
+		fi
+
+		if [ -t 1 ]; then
+			printr "Download speed (min/avg/max): ${minDlSpeed} ${avgDlSpeed} ${maxDlSpeed} Mbps"
+		elif [ "${dlSpeedCount}" = "${fastURLCount}" ]; then
+			printf '%s\r' "download,${minDlSpeed},${avgDlSpeed},${maxDlSpeed}"
+		fi
+	done
+	IFS=$_IFS
+	printf '\n'
+
+	# Upload speed tests
+	####################
+
+	if [ -t 1 ]; then
+		printr 'Upload speed (min/avg/max): '
+	fi
+
+	ulSpeedCount=0; ulSpeedSum=0
+	minUlSpeed=; avgUlSpeed=; maxUlSpeed=
+
+	_IFS=$IFS; IFS="$(printf '\nx')"; IFS="${IFS%x}"
+	for url in $fastSpeedtestURLs; do
+		ulSpeedCount=$((ulSpeedCount + 1))
+
+		curUlSpeed=$(toMbps "$(randOut | curl -fsSL -w '%{speed_upload}' -X POST -d @- "${url}")")
+		ulSpeedSum=$(add "${ulSpeedSum}" "${curUlSpeed}")
+
+		if [ "${ulSpeedCount}" = 1 ]; then
+			minUlSpeed=${curUlSpeed}
+			avgUlSpeed=${curUlSpeed}
+			maxUlSpeed=${curUlSpeed}
+		else
+			minUlSpeed=$(min "${minUlSpeed}" "${curUlSpeed}")
+			avgUlSpeed=$(div "${ulSpeedSum}" "${ulSpeedCount}")
+			maxUlSpeed=$(max "${maxUlSpeed}" "${curUlSpeed}")
+		fi
+
+		if [ -t 1 ]; then
+			printr "Upload speed (min/avg/max): ${minUlSpeed} ${avgUlSpeed} ${maxUlSpeed} Mbps"
+		elif [ "${ulSpeedCount}" = "${fastURLCount}" ]; then
+			printf '%s\r' "upload,${minUlSpeed},${avgUlSpeed},${maxUlSpeed}"
+		fi
+	done
+	IFS=$_IFS
+	printf '\n'
+}
+
+main "$@"
