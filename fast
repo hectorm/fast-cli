@@ -54,6 +54,9 @@ main() {
 	fastToken=$(getFastToken); fastUseHTTPS=true; fastURLCount=5
 	fastSpeedtestURLs=$(getFastSpeedtestURLs "${fastToken:?}" "${fastUseHTTPS:?}" "${fastURLCount:?}")
 
+	# The API does not necessarily respond with the number of requested URLs
+	fastURLCount=$(printf -- '%s' "${fastSpeedtestURLs:?}" | awk 'END{print(NR)}')
+
 	# Latency tests
 	###############
 
