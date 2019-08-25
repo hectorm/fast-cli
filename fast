@@ -91,7 +91,7 @@ main() {
 		fi
 
 		if [ -t 1 ]; then
-			printr "Latency (min/avg/max): ${minLatency:?} ${avgLatency:?} ${maxLatency:?} ms"
+			printr "Latency (min/avg/max): ${minLatency:?}/${avgLatency:?}/${maxLatency:?} ms"
 		elif [ "${latencyCount:?}" = "${fastURLCount:?}" ]; then
 			printf '%s\r' "latency,${minLatency:?},${avgLatency:?},${maxLatency:?}"
 		fi
@@ -127,7 +127,7 @@ main() {
 		fi
 
 		if [ -t 1 ]; then
-			printr "Download speed (min/avg/max): ${minDlSpeed:?} ${avgDlSpeed:?} ${maxDlSpeed:?} Mbps"
+			printr "Download speed (min/avg/max): ${minDlSpeed:?}/${avgDlSpeed:?}/${maxDlSpeed:?} Mbps"
 		elif [ "${dlSpeedCount:?}" = "${fastURLCount:?}" ]; then
 			printf '%s\r' "download,${minDlSpeed:?},${avgDlSpeed:?},${maxDlSpeed:?}"
 		fi
@@ -163,7 +163,7 @@ main() {
 		fi
 
 		if [ -t 1 ]; then
-			printr "Upload speed (min/avg/max): ${minUlSpeed:?} ${avgUlSpeed:?} ${maxUlSpeed:?} Mbps"
+			printr "Upload speed (min/avg/max): ${minUlSpeed:?}/${avgUlSpeed:?}/${maxUlSpeed:?} Mbps"
 		elif [ "${ulSpeedCount:?}" = "${fastURLCount:?}" ]; then
 			printf '%s\r' "upload,${minUlSpeed:?},${avgUlSpeed:?},${maxUlSpeed:?}"
 		fi
