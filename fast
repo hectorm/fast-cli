@@ -24,17 +24,17 @@ getFastToken() {
 	printf -- '%s' "${fastToken:?}"
 }
 
-getFastSpeedtestURLs() {
+getFastURLs() {
 	fastToken=${1:?}; fastUseHTTPS=${2:?}; fastURLCount=${3:?}
 	fastAPIURL='https://api.fast.com/netflix/speedtest'
 	fastAPIParams="token=${fastToken:?}&https=${fastUseHTTPS:?}&urlCount=${fastURLCount:?}"
-	fastSpeedtestURLs=$(curl -s "${fastAPIURL:?}?${fastAPIParams:?}" | awk '
+	fastURLs=$(curl -s "${fastAPIURL:?}?${fastAPIParams:?}" | awk '
 		{while(match($0, /"url":"[^"]+"/)) {
 			print(substr($0, RSTART+7, RLENGTH-8));
 			$0=substr($0, RSTART+RLENGTH);
 		}}
 	')
-	printf -- '%s' "${fastSpeedtestURLs:?}"
+	printf -- '%s' "${fastURLs:?}"
 }
 
 # Moves the cursor to the beginning of the current line, deletes it, and prints text
@@ -52,10 +52,10 @@ toMbps() { div "${1:?}" 125000; }
 
 main() {
 	fastToken=$(getFastToken); fastUseHTTPS=true; fastURLCount=5
-	fastSpeedtestURLs=$(getFastSpeedtestURLs "${fastToken:?}" "${fastUseHTTPS:?}" "${fastURLCount:?}")
+	fastURLs=$(getFastURLs "${fastToken:?}" "${fastUseHTTPS:?}" "${fastURLCount:?}")
 
 	# The API does not necessarily respond with the number of requested URLs
-	fastURLCount=$(printf -- '%s' "${fastSpeedtestURLs:?}" | awk 'END{print(NR)}')
+	fastURLCount=$(printf -- '%s' "${fastURLs:?}" | awk 'END{print(NR)}')
 
 	# Latency tests
 	###############
@@ -68,7 +68,7 @@ main() {
 	minLatency=; avgLatency=; maxLatency=
 
 	_IFS=$IFS; IFS="$(printf '\nx')"; IFS="${IFS%x}"
-	for url in $fastSpeedtestURLs; do
+	for url in $fastURLs; do
 		latencyCount=$((latencyCount + 1))
 
 		domain=${url#*://}; domain=${domain%%/*}
@@ -110,7 +110,7 @@ main() {
 	minDlSpeed=; avgDlSpeed=; maxDlSpeed=
 
 	_IFS=$IFS; IFS="$(printf '\nx')"; IFS="${IFS%x}"
-	for url in $fastSpeedtestURLs; do
+	for url in $fastURLs; do
 		dlSpeedCount=$((dlSpeedCount + 1))
 
 		curDlSpeed=$(toMbps "$(curl -fsSL -w '%{speed_download}' -o /dev/null "${url:?}")")
@@ -146,7 +146,7 @@ main() {
 	minUlSpeed=; avgUlSpeed=; maxUlSpeed=
 
 	_IFS=$IFS; IFS="$(printf '\nx')"; IFS="${IFS%x}"
-	for url in $fastSpeedtestURLs; do
+	for url in $fastURLs; do
 		ulSpeedCount=$((ulSpeedCount + 1))
 
 		curUlSpeed=$(toMbps "$(randOut | curl -fsSL -w '%{speed_upload}' -X POST -d @- "${url:?}")")
