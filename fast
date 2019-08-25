@@ -51,7 +51,7 @@ max() { awk -v a="${1:?}" -v b="${2:?}" 'BEGIN{printf("%0.2f\n", a > b ? a : b)}
 toMbps() { div "${1:?}" 125000; }
 
 main() {
-	fastToken=$(getFastToken); fastUseHTTPS=true; fastURLCount=3
+	fastToken=$(getFastToken); fastUseHTTPS=true; fastURLCount=5
 	fastSpeedtestURLs=$(getFastSpeedtestURLs "${fastToken:?}" "${fastUseHTTPS:?}" "${fastURLCount:?}")
 
 	# Latency tests
