@@ -7,6 +7,9 @@
 set -eu
 export LC_ALL=C
 
+# Literal newline
+ENL="$(printf '\\\nx')"; ENL="${ENL%x}"
+
 getFastToken() {
 	fastMainURL='https://fast.com'
 	fastMainResponse=$(curl -fsSL "${fastMainURL}")
@@ -22,7 +25,7 @@ getFastSpeedtestURLs() {
 	fastAPIURLParams="token=${fastToken}&https=${fastUseHTTPS}&urlCount=${fastURLCount}"
 	fastAPIURL="${fastAPIURLBase}?${fastAPIURLParams}"
 	fastAPIResponse=$(curl -fsSL "${fastAPIURL}")
-	fastSpeedtestURLs=$(printf -- '%s' "${fastAPIResponse}" | sed 's|[^}]*"url":"\([^"]*\)"[^{]*|\1\n|g')
+	fastSpeedtestURLs=$(printf -- '%s' "${fastAPIResponse}" | sed "s|[^}]*\"url\":\"\([^\"]*\)\"[^{]*|\1${ENL}|g")
 	printf -- '%s' "${fastSpeedtestURLs}"
 }
 
