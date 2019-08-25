@@ -72,7 +72,7 @@ main() {
 		latencyCount=$((latencyCount + 1))
 
 		domain=${url#*://}; domain=${domain%%/*}
-		curLatency=$(ping -c 3 "${domain:?}" | awk '
+		curLatency=$(ping -c 2 "${domain:?}" | awk '
 			match($0, /= [0-9.\/]+ ms$/) {
 				split(substr($0, RSTART+2, RLENGTH-5), n, "/");
 				print(n[2]); exit;
